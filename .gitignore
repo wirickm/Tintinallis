@@ -3,3 +3,4 @@ vector_db/
 data/chat_log.csv
 __pycache__/
 .pytest_cache/
+*.egg-info/

@@ -1,50 +1,19 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-Emergency Medicine Knowledge Extraction and Retrieval System: a RAG pipeline over the Tintinallis Emergency Medicine textbook PDF, with semantic search and chat through a Gradio UI.
-
-## Setup
-
-```bash
-pip install -r requirements.txt
-cp .env.example .env   # set OPENAI_API_KEY
-```
-
-## Commands
-
-```bash
-python -m tintinallis extract --pdf book.pdf --section "Section 1"
-python -m tintinallis summarize --section "Section 1"
-python -m tintinallis index
-python -m tintinallis app
-python -m tintinallis all --pdf book.pdf --sections "Section 1" "Section 2"
-pytest            # uses fakes, never calls OpenAI
-```
+Dev guidance for Claude Code in this repo. See README.md for setup and usage commands.
 
 ## Layout
 
-- `tintinallis/config.py`: paths (all relative to repo root), `MODEL`, `SYSTEM_PROMPT`
-- `tintinallis/sections.py`: section page ranges, `slug()` ("Section 1" -> `section_01`)
-- `tintinallis/extract.py`: PDF pages -> `data/raw/<slug>.txt`
-- `tintinallis/summarize.py`: 5,000-char chunks -> gpt-4o-mini summaries -> `data/summaries/<slug>.md`
-- `tintinallis/index.py`: 3,000-char chunks, 400 overlap, metadata `section` -> Chroma in `vector_db/`
-- `tintinallis/rag.py`: retrieve, prompt (answer only from context), answer, chat CSV log (`data/chat_log.csv`)
-- `tintinallis/viz.py`: 3D t-SNE plot of embeddings colored by section
-- `tintinallis/app.py`: Gradio app with "Chat" and "3D Embeddings" tabs
-- `tintinallis/cli.py`: argparse entry point
-- `notebooks/`: original exploratory notebooks, kept for reference only
-- `tests/`: pytest suite with fake embeddings and LLM
+- `tintinallis/` - pipeline package (`python -m tintinallis <extract|summarize|index|app|all>`, see `cli.py`)
+  - `config.py` holds all paths (`data/raw`, `data/summaries`, `vector_db/`, `data/chat_log.csv`), the model (`gpt-4o-mini`) and the summarize system prompt
+  - `extract.py` PDF -> text, `sections.py` section page ranges and slugs, `summarize.py` GPT summaries, `index.py` Chroma build, `rag.py` retrieval + answer, `viz.py` t-SNE plot, `app.py` Gradio UI
+- `tests/` - pytest suite, mocks OpenAI so no API key is needed
+- `data/raw/`, `data/summaries/` - generated pipeline data (tracked; treat as data, do not hand-edit). Only Section 1 is extracted so far (source PDF not in repo)
+- `notebooks/` - original exploratory notebooks, kept for reference only; do not maintain them
 
-**Data flow:**
-```
-PDF -> extract -> data/raw -> summarize -> data/summaries -> index -> vector_db
-                                     user query -> similarity search -> GPT -> answer + sources
-```
+## Conventions
 
-## Notes
-
-- Only Section 1 has been extracted and summarized so far.
-- The notebooks still contain old hardcoded Windows paths; use the package instead.
+- `OPENAI_API_KEY` comes from `.env` (see `.env.example`), loaded in `config.py`
+- All paths are relative to the repo root via `config.ROOT`; do not hardcode absolute paths
+- Run `python -m pytest -q` before committing
+- Generated/local files are gitignored: `.env`, `vector_db/`, `data/chat_log.csv`, caches
