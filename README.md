@@ -19,7 +19,9 @@ python -m tintinallis app                                           # open the c
 python -m tintinallis all --pdf book.pdf --sections "Section 1" "Section 2"
 ```
 
-Run tests with `pytest` (no API key needed).
+The app listens on 127.0.0.1:7860; override with `GRADIO_SERVER_NAME` and `GRADIO_SERVER_PORT`.
+
+Run tests with `python -m pytest` (no API key needed).
 
 ## Flow
 
