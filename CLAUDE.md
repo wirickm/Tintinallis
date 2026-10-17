@@ -4,60 +4,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Emergency Medicine Knowledge Extraction and Retrieval System — a RAG (Retrieval Augmented Generation) pipeline that processes the Tintinallis Emergency Medicine textbook PDF to enable semantic search and chat-based queries via a Gradio UI.
+Emergency Medicine Knowledge Extraction and Retrieval System: a RAG pipeline over the Tintinallis Emergency Medicine textbook PDF, with semantic search and chat through a Gradio UI.
 
 ## Setup
 
-**Environment variable required:**
-```
-OPENAI_API_KEY=<your key>
-```
-Place in a `.env` file at the project root (loaded via `python-dotenv`).
-
-**Install dependencies (no requirements.txt yet — inferred from notebooks):**
-```
-pip install PyPDF2 openai python-dotenv langchain langchain-openai langchain-chroma gradio numpy scikit-learn plotly matplotlib pandas
-```
-
-**Run notebooks:**
 ```bash
-jupyter notebook
+pip install -r requirements.txt
+cp .env.example .env   # set OPENAI_API_KEY
 ```
 
-## Pipeline Architecture
+## Commands
 
-The project is a three-stage Jupyter notebook pipeline:
+```bash
+python -m tintinallis extract --pdf book.pdf --section "Section 1"
+python -m tintinallis summarize --section "Section 1"
+python -m tintinallis index
+python -m tintinallis app
+python -m tintinallis all --pdf book.pdf --sections "Section 1" "Section 2"
+pytest            # uses fakes, never calls OpenAI
+```
 
-### Stage 1 — Text Extraction & Summarization (`01_clean.ipynb`)
-- Extracts pages 20–74 from the PDF (Section 1: Advanced Airway Support)
-- Chunks text into ~5,000-character segments (~26 chunks)
-- Sends each chunk to `gpt-4o-mini` for summarization with the system prompt: *"Retain relevant information, ignore chapter/section headers"*
-- Outputs `Section 1_summaries.md` and `02_Section 1_summaries.md`
+## Layout
 
-### Stage 2 — Vector Database (`03_clean2.ipynb`)
-- Loads the summaries markdown file
-- Re-chunks into 3,000-character segments with 400-character overlap (~46 chunks)
-- Generates OpenAI embeddings (1,536 dimensions) and persists to `/vector_db` via Chroma
-- Visualizes embedding space with t-SNE dimensionality reduction (3D Plotly)
-
-### Stage 3 — Chat Interface (`cleanv3 gradio.ipynb`)
-- Loads the persisted Chroma vectorstore from `/vector_db`
-- RAG flow: user query → similarity search → top matches as context → ChatGPT response
-- Gradio UI with two tabs: **Chat** and **3D Embedding Graph**
-- Saves conversation history to CSV
+- `tintinallis/config.py`: paths (all relative to repo root), `MODEL`, `SYSTEM_PROMPT`
+- `tintinallis/sections.py`: section page ranges, `slug()` ("Section 1" -> `section_01`)
+- `tintinallis/extract.py`: PDF pages -> `data/raw/<slug>.txt`
+- `tintinallis/summarize.py`: 5,000-char chunks -> gpt-4o-mini summaries -> `data/summaries/<slug>.md`
+- `tintinallis/index.py`: 3,000-char chunks, 400 overlap, metadata `section` -> Chroma in `vector_db/`
+- `tintinallis/rag.py`: retrieve, prompt (answer only from context), answer, chat CSV log (`data/chat_log.csv`)
+- `tintinallis/viz.py`: 3D t-SNE plot of embeddings colored by section
+- `tintinallis/app.py`: Gradio app with "Chat" and "3D Embeddings" tabs
+- `tintinallis/cli.py`: argparse entry point
+- `notebooks/`: original exploratory notebooks, kept for reference only
+- `tests/`: pytest suite with fake embeddings and LLM
 
 **Data flow:**
 ```
-PDF → extract text → GPT summarize → Markdown
-                                         ↓
-                               re-chunk + embed → Chroma DB
-                                                      ↓
-                          user query → similarity search → GPT → response
+PDF -> extract -> data/raw -> summarize -> data/summaries -> index -> vector_db
+                                     user query -> similarity search -> GPT -> answer + sources
 ```
 
-## Known Issues / TODOs
+## Notes
 
-- Hardcoded Windows file paths (`C:/Users/MichaelJWirickJr/...`) in notebooks — must be updated to relative paths when running on other machines
-- No `requirements.txt` — should be created
-- `cleanv3 gradio.ipynb` has undefined function errors in the last few cells
-- Vector DB path (`/vector_db`) may need to be adjusted to a relative path
+- Only Section 1 has been extracted and summarized so far.
+- The notebooks still contain old hardcoded Windows paths; use the package instead.
